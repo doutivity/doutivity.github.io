@@ -1,6 +1,10 @@
 import activityUrlStateContainer from "./framework/activity_url_state_container";
 import {setStateByURLMapper} from "./framework/set_state_by_url";
-import {ACTIVITY_SEARCH_QUERY, ACTIVITY_URL} from "./framework/activity_criteria_names";
+import {
+    ACTIVITY_SEARCH_QUERY,
+    ACTIVITY_SUPPORTED_CRITERIA_NAME,
+    ACTIVITY_URL
+} from "./framework/activity_criteria_names";
 import {toEnter} from "./framework/enter";
 
 {
@@ -8,6 +12,7 @@ import {toEnter} from "./framework/enter";
 
     const {
         setInputStateByURL,
+        setCheckboxStateByURL,
     } = setStateByURLMapper(activityUrlStateContainer)
 
     const $urlForm = document.getElementById("js-url-form") as HTMLFormElement;
@@ -18,9 +23,20 @@ import {toEnter} from "./framework/enter";
 
     const $activityForm = document.getElementById("js-activities-form") as HTMLFormElement;
     const $search = $activityForm.elements["search"] as HTMLInputElement;
+    const $supported = $activityForm.elements["supported"] as HTMLInputElement;
 
     setInputStateByURL($url, ACTIVITY_URL);
     setInputStateByURL($search, ACTIVITY_SEARCH_QUERY);
+    setCheckboxStateByURL($supported, ACTIVITY_SUPPORTED_CRITERIA_NAME);
+
+    function onCheckboxChange($checkbox: HTMLInputElement, criteriaName: string) {
+        $checkbox.addEventListener("change", function () {
+            activityUrlStateContainer.setBoolCriteria(criteriaName, $checkbox.checked);
+            activityUrlStateContainer.storeCurrentState();
+
+            search();
+        });
+    }
 
     function getPageCount($doc: Document): number {
         const $pages = $doc.querySelectorAll(".page");
@@ -94,12 +110,40 @@ import {toEnter} from "./framework/enter";
         let totalCount = 0;
 
         const query = activityUrlStateContainer.getCriteria(ACTIVITY_SEARCH_QUERY, "").toLowerCase();
+        const supported = activityUrlStateContainer.getCriteria(ACTIVITY_SUPPORTED_CRITERIA_NAME, false);
+
+        const matchQuery = (function () {
+            if (query === "") {
+                return function ($comment: HTMLElement) {
+                    return true;
+                };
+            }
+
+            return function ($comment: HTMLElement) {
+                return $comment
+                    .querySelector(".comment-item .b-typo")
+                    .textContent.toLowerCase()
+                    .indexOf(query) !== -1;
+            };
+        })();
+
+        const matchSupported = (function () {
+            if (supported === false) {
+                return function ($comment: HTMLElement) {
+                    return true;
+                };
+            }
+
+            return function ($comment: HTMLElement) {
+                return $comment.querySelector(".sup-users") !== null;
+            };
+        })();
 
         for (const $originalComments of $originalCommentPageGroup) {
             for (const $originalComment of $originalComments.children) {
                 totalCount += 1;
 
-                if (query === "" || $originalComment.textContent.toLowerCase().indexOf(query) !== -1) {
+                if (matchSupported($originalComment) && matchQuery($originalComment)) {
                     $matched.push($originalComment.cloneNode(true));
                 }
             }
@@ -119,7 +163,7 @@ import {toEnter} from "./framework/enter";
         });
     }
 
-    $url.addEventListener("keyup", toEnter(handleFetchActivities))
+    $url.addEventListener("keyup", toEnter(handleFetchActivities));
 
     function handleSearch() {
         activityUrlStateContainer.setStringCriteria(ACTIVITY_SEARCH_QUERY, $search.value);
@@ -128,7 +172,9 @@ import {toEnter} from "./framework/enter";
         search();
     }
 
-    $search.addEventListener("keyup", toEnter(handleSearch))
+    $search.addEventListener("keyup", toEnter(handleSearch));
+
+    onCheckboxChange($supported, ACTIVITY_SUPPORTED_CRITERIA_NAME);
 
     $urlForm.onsubmit = handleFetchActivities;
     $activityForm.onsubmit = handleSearch;
