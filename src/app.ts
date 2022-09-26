@@ -4,6 +4,8 @@ import {ACTIVITY_SEARCH_QUERY, ACTIVITY_URL} from "./framework/activity_criteria
 import {toEnter} from "./framework/enter";
 
 {
+    const showPageCount = 3;
+
     const {
         setInputStateByURL,
     } = setStateByURLMapper(activityUrlStateContainer)
@@ -12,6 +14,7 @@ import {toEnter} from "./framework/enter";
     const $url = $urlForm.elements["url"] as HTMLInputElement;
     let $originalCommentPageGroup = [];
     const $comments = document.getElementById("js-content-comments");
+    const $stats = document.getElementById("js-stats");
 
     const $activityForm = document.getElementById("js-activities-form") as HTMLFormElement;
     const $search = $activityForm.elements["search"] as HTMLInputElement;
@@ -19,8 +22,21 @@ import {toEnter} from "./framework/enter";
     setInputStateByURL($url, ACTIVITY_URL);
     setInputStateByURL($search, ACTIVITY_SEARCH_QUERY);
 
+    function getPageCount($doc: Document): number {
+        const $pages = $doc.querySelectorAll(".page");
+
+        if ($pages.length === 0) {
+            return 1;
+        }
+
+        const $last = $pages[$pages.length - 1];
+
+        return parseInt($last.textContent, 10);
+    }
+
     function fetchActivities(onSuccess: () => void) {
-        if ($url.value === "") {
+        const activityURL = $url.value;
+        if (activityURL === "") {
             $originalCommentPageGroup = [];
             $comments.innerHTML = "";
 
@@ -28,35 +44,68 @@ import {toEnter} from "./framework/enter";
         }
 
         $originalCommentPageGroup = [];
-        fetch($url.value)
+        fetch(activityURL)
             .then(function (response) {
                 return response.text();
             })
             .then(function (html) {
                 const parser = new DOMParser();
 
-                const doc = parser.parseFromString(html, "text/html");
+                const $doc = parser.parseFromString(html, "text/html");
 
-                $originalCommentPageGroup = [doc.querySelector("ul.items")];
+                $originalCommentPageGroup = [$doc.querySelector("ul.items")];
 
-                onSuccess();
+                const totalPageCount = getPageCount($doc);
+                if (totalPageCount === 1) {
+                    onSuccess();
+
+                    return;
+                }
+
+                const pages = Math.min(showPageCount, totalPageCount);
+
+                const requests = [];
+
+                for (let page = 2; page <= pages; page++) {
+                    requests.push(fetch(`${activityURL}/${page}/`));
+                }
+
+                Promise.all(requests)
+                    .then(function (responses) {
+                        return Promise.all(responses.map(response => response.text()))
+                    })
+                    .then(function (htmls) {
+                        for (const html of htmls) {
+                            const parser = new DOMParser();
+
+                            const $doc = parser.parseFromString(html, "text/html");
+
+                            $originalCommentPageGroup.push($doc.querySelector("ul.items"));
+                        }
+
+                        onSuccess();
+                    });
             })
             .catch(console.error);
     }
 
     function search() {
         const $matched = [];
+        let totalCount = 0;
 
         const query = activityUrlStateContainer.getCriteria(ACTIVITY_SEARCH_QUERY, "").toLowerCase();
 
         for (const $originalComments of $originalCommentPageGroup) {
             for (const $originalComment of $originalComments.children) {
+                totalCount += 1;
+
                 if (query === "" || $originalComment.textContent.toLowerCase().indexOf(query) !== -1) {
                     $matched.push($originalComment.cloneNode(true));
                 }
             }
         }
 
+        $stats.innerHTML = `${$matched.length} from ${totalCount}`;
         $comments.innerHTML = "";
         $comments.append(...$matched);
     }
