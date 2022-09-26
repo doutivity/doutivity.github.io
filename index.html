@@ -19,9 +19,16 @@
 </head>
 <body>
     <h1>Пошук серед коментарів DOU</h1>
-
-    <footer>&copy; 2022 Yaroslav Podorvanov <svg xmlns="http://www.w3.org/2000/svg" width="15" height="10"><rect width="15" height="10" fill="#005BBB"/><rect width="15" height="5" y="5" fill="#FFD500"/></svg></footer>
+    <div>
+        <form action="javascript:void(0);">
+            <input name="url" type="url" placeholder="https://dou.ua/users/admin/activities/">
+            <button type="submit">Шукати</button>
+        </form>
+    </div>
+    <div id="js-content-comments"></div>
 
     <script src="/static/js/app.js"></script>
+
+    <footer>&copy; 2022 Yaroslav Podorvanov <svg xmlns="http://www.w3.org/2000/svg" width="15" height="10"><rect width="15" height="10" fill="#005BBB"/><rect width="15" height="5" y="5" fill="#FFD500"/></svg></footer>
 </body>
 </html>

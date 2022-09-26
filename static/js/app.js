@@ -1,1 +1,1 @@
-console.log("Пошук серед коментарів");
+(()=>{{let t=document.getElementsByTagName("form")[0],n=t.elements.url,o=document.getElementById("js-content-comments");t.onsubmit=function(){fetch(n.value).then(function(e){return e.text()}).then(function(e){let r=new DOMParser().parseFromString(e,"text/html");o.append(r.querySelector("ul.items"))}).catch(console.error)}}})();
