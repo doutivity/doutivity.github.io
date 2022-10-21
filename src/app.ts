@@ -8,7 +8,7 @@ import {
 import {toEnter} from "./framework/enter";
 
 {
-    const showPageCount = 3;
+    const showPageCount = 12;
 
     const {
         setInputStateByURL,
