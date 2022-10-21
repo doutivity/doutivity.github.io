@@ -6,6 +6,8 @@ import {
     ACTIVITY_URL
 } from "./framework/activity_criteria_names";
 import {toEnter} from "./framework/enter";
+import {Storage} from "./storage";
+import {TextResponse} from "./response";
 
 {
     const showPageCount = 12;
@@ -50,6 +52,33 @@ import {toEnter} from "./framework/enter";
         return parseInt($last.textContent, 10);
     }
 
+    const storage = new Storage("dou:", 5 * 60 * 1000);
+    storage.clear(false);
+
+    function fetchAndCache(url: string, delay: number): Promise<TextResponse> {
+        return new Promise(function (resolve, reject) {
+            const cached = storage.get(url);
+            if (cached !== null) {
+                resolve(new TextResponse(cached));
+
+                return;
+            }
+
+            setTimeout(function () {
+                fetch(url)
+                    .then(function (response) {
+                        return response.text();
+                    })
+                    .then(function (text) {
+                        storage.set(url, text);
+
+                        resolve(new TextResponse(text));
+                    })
+                    .catch(reject);
+            }, delay);
+        });
+    }
+
     function fetchActivities(onSuccess: () => void) {
         const activityURL = $url.value;
         if (activityURL === "") {
@@ -60,7 +89,7 @@ import {toEnter} from "./framework/enter";
         }
 
         $originalCommentPageGroup = [];
-        fetch(activityURL)
+        fetchAndCache(activityURL, 100)
             .then(function (response) {
                 return response.text();
             })
@@ -81,15 +110,8 @@ import {toEnter} from "./framework/enter";
                 const pages = Math.min(showPageCount, totalPageCount);
 
                 const requests = [];
-
                 for (let page = 2; page <= pages; page++) {
-                    requests.push((function (activityURL, page) {
-                        return new Promise(resolve => {
-                            setTimeout(function () {
-                                resolve(fetch(`${activityURL}/${page}/`));
-                            }, page * 250);
-                        });
-                    }(activityURL, page)));
+                    requests.push(fetchAndCache(`${activityURL}/${page}/`, page * 250));
                 }
 
                 Promise.all(requests)
