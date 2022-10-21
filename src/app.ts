@@ -83,7 +83,13 @@ import {toEnter} from "./framework/enter";
                 const requests = [];
 
                 for (let page = 2; page <= pages; page++) {
-                    requests.push(fetch(`${activityURL}/${page}/`));
+                    requests.push((function (activityURL, page) {
+                        return new Promise(resolve => {
+                            setTimeout(function () {
+                                resolve(fetch(`${activityURL}/${page}/`));
+                            }, page * 250);
+                        });
+                    }(activityURL, page)));
                 }
 
                 Promise.all(requests)
@@ -91,9 +97,9 @@ import {toEnter} from "./framework/enter";
                         return Promise.all(responses.map(response => response.text()))
                     })
                     .then(function (htmls) {
-                        for (const html of htmls) {
-                            const parser = new DOMParser();
+                        const parser = new DOMParser();
 
+                        for (const html of htmls) {
                             const $doc = parser.parseFromString(html, "text/html");
 
                             $originalCommentPageGroup.push($doc.querySelector("ul.items"));
