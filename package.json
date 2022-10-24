@@ -13,6 +13,7 @@
   },
   "scripts": {
     "build": "webpack --mode production",
-    "esbuild": "esbuild ./src/app.ts --bundle --minify --outfile=./static/js/app.js"
+    "esbuild": "esbuild ./src/app.ts --bundle --outfile=./static/js/app.js",
+    "esbuild-minify": "esbuild ./src/app.ts --bundle --minify --outfile=./static/js/app.js"
   }
 }

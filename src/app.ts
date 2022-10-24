@@ -1,211 +1,218 @@
-import activityUrlStateContainer from "./framework/activity_url_state_container";
-import {setStateByURLMapper} from "./framework/set_state_by_url";
 import {
+    USER_URL,
     ACTIVITY_SEARCH_QUERY,
-    ACTIVITY_SUPPORTED_CRITERIA_NAME,
-    ACTIVITY_URL
+    ACTIVITY_PAGES,
+    ACTIVITY_ANCHOR_CRITERIA_NAME,
+    ACTIVITY_CODE_CRITERIA_NAME,
+    ACTIVITY_SUPPORT_CRITERIA_NAME,
+    ACTIVITY_SOURCE_CRITERIA_NAME,
 } from "./framework/activity_criteria_names";
+import urlStateContainer from "./framework/activity_url_state_container";
+import {setStateByURLMapper} from "./framework/set_state_by_url";
+import {Checkboxes, InputCheckboxes} from "./framework/checkboxes";
 import {toEnter} from "./framework/enter";
-import {Storage} from "./storage";
-import {TextResponse} from "./response";
 
-{
-    const showPageCount = 12;
+import {parseDOUxURL} from "./dou_url";
+import {DelayCounter, fetchAndCache} from "./fetch_and_cache";
+import {ActivitiesResponse, User} from "./models";
+import {buildMatcher} from "./matches";
 
-    const {
-        setInputStateByURL,
-        setCheckboxStateByURL,
-    } = setStateByURLMapper(activityUrlStateContainer)
+function fetchActivities(activityURL: string, showPages: string, render: (response: ActivitiesResponse | null) => void) {
+    const delay = new DelayCounter(250, 0);
 
-    const $urlForm = document.getElementById("js-url-form") as HTMLFormElement;
-    const $url = $urlForm.elements["url"] as HTMLInputElement;
-    let $originalCommentPageGroup = [];
-    const $comments = document.getElementById("js-content-comments");
-    const $stats = document.getElementById("js-stats");
+    fetchAndCache(activityURL, delay)
+        .then(function (response) {
+            return response.text();
+        })
+        .then(function (html) {
+            const parser = new DOMParser();
 
-    const $activityForm = document.getElementById("js-activities-form") as HTMLFormElement;
-    const $search = $activityForm.elements["search"] as HTMLInputElement;
-    const $supported = $activityForm.elements["supported"] as HTMLInputElement;
+            const $doc = parser.parseFromString(html, "text/html");
 
-    setInputStateByURL($url, ACTIVITY_URL);
-    setInputStateByURL($search, ACTIVITY_SEARCH_QUERY);
-    setCheckboxStateByURL($supported, ACTIVITY_SUPPORTED_CRITERIA_NAME);
+            const $username = $doc.querySelector("div.top_wide.profile-head div.b-author div.name a");
+            const $avatar = $doc.querySelector("div.top_wide.profile-head div.b-author img.g-avatar") as HTMLImageElement;
+            const user = new User(
+                $username.innerHTML,
+                $avatar.src,
+            );
 
-    function onCheckboxChange($checkbox: HTMLInputElement, criteriaName: string) {
-        $checkbox.addEventListener("change", function () {
-            activityUrlStateContainer.setBoolCriteria(criteriaName, $checkbox.checked);
-            activityUrlStateContainer.storeCurrentState();
+            const $originalCommentPageGroup = [$doc.querySelector("ul.items")];
 
-            search();
-        });
-    }
-
-    function getPageCount($doc: Document): number {
-        const $pages = $doc.querySelectorAll(".page");
-
-        if ($pages.length === 0) {
-            return 1;
-        }
-
-        const $last = $pages[$pages.length - 1];
-
-        return parseInt($last.textContent, 10);
-    }
-
-    const storage = new Storage("dou:", 5 * 60 * 1000);
-    storage.clear(false);
-
-    function fetchAndCache(url: string, delay: number): Promise<TextResponse> {
-        return new Promise(function (resolve, reject) {
-            const cached = storage.get(url);
-            if (cached !== null) {
-                resolve(new TextResponse(cached));
+            const totalPageCount = getPageCount($doc);
+            if (totalPageCount === 1) {
+                render(new ActivitiesResponse(
+                    user,
+                    1,
+                    1,
+                    $originalCommentPageGroup,
+                ));
 
                 return;
             }
 
-            setTimeout(function () {
-                fetch(url)
-                    .then(function (response) {
-                        return response.text();
-                    })
-                    .then(function (text) {
-                        storage.set(url, text);
-
-                        resolve(new TextResponse(text));
-                    })
-                    .catch(reject);
-            }, delay);
-        });
-    }
-
-    function fetchActivities(onSuccess: () => void) {
-        const activityURL = $url.value;
-        if (activityURL === "") {
-            $originalCommentPageGroup = [];
-            $comments.innerHTML = "";
-
-            return;
-        }
-
-        $originalCommentPageGroup = [];
-        fetchAndCache(activityURL, 100)
-            .then(function (response) {
-                return response.text();
-            })
-            .then(function (html) {
-                const parser = new DOMParser();
-
-                const $doc = parser.parseFromString(html, "text/html");
-
-                $originalCommentPageGroup = [$doc.querySelector("ul.items")];
-
-                const totalPageCount = getPageCount($doc);
-                if (totalPageCount === 1) {
-                    onSuccess();
-
-                    return;
-                }
-
-                const pages = Math.min(showPageCount, totalPageCount);
-
-                const requests = [];
-                for (let page = 2; page <= pages; page++) {
-                    requests.push(fetchAndCache(`${activityURL}/${page}/`, page * 250));
-                }
-
-                Promise.all(requests)
-                    .then(function (responses) {
-                        return Promise.all(responses.map(response => response.text()))
-                    })
-                    .then(function (htmls) {
-                        const parser = new DOMParser();
-
-                        for (const html of htmls) {
-                            const $doc = parser.parseFromString(html, "text/html");
-
-                            $originalCommentPageGroup.push($doc.querySelector("ul.items"));
-                        }
-
-                        onSuccess();
-                    });
-            })
-            .catch(console.error);
-    }
-
-    function search() {
-        const $matched = [];
-        let totalCount = 0;
-
-        const query = activityUrlStateContainer.getCriteria(ACTIVITY_SEARCH_QUERY, "").toLowerCase();
-        const supported = activityUrlStateContainer.getCriteria(ACTIVITY_SUPPORTED_CRITERIA_NAME, false);
-
-        const matchQuery = (function () {
-            if (query === "") {
-                return function ($comment: HTMLElement) {
-                    return true;
-                };
+            let pages = 0;
+            if (showPages === "") {
+                pages = Math.min(5, totalPageCount);
+            } else if (showPages === "all") {
+                pages = totalPageCount
+            } else {
+                pages = Math.min(parseInt(showPages), totalPageCount);
             }
 
-            return function ($comment: HTMLElement) {
-                return $comment
-                    .querySelector(".comment-item .b-typo")
-                    .textContent.toLowerCase()
-                    .indexOf(query) !== -1;
-            };
-        })();
-
-        const matchSupported = (function () {
-            if (supported === false) {
-                return function ($comment: HTMLElement) {
-                    return true;
-                };
+            const requests = [];
+            for (let page = 2; page <= pages; page++) {
+                requests.push(fetchAndCache(`${activityURL}/${page}/`, delay));
             }
 
-            return function ($comment: HTMLElement) {
-                return $comment.querySelector(".sup-users") !== null;
-            };
-        })();
+            Promise.all(requests)
+                .then(function (responses) {
+                    return Promise.all(responses.map(response => response.text()))
+                })
+                .then(function (htmls) {
+                    const parser = new DOMParser();
 
-        for (const $originalComments of $originalCommentPageGroup) {
-            for (const $originalComment of $originalComments.children) {
-                totalCount += 1;
+                    for (const html of htmls) {
+                        const $doc = parser.parseFromString(html, "text/html");
 
-                if (matchSupported($originalComment) && matchQuery($originalComment)) {
-                    $matched.push($originalComment.cloneNode(true));
-                }
-            }
-        }
+                        $originalCommentPageGroup.push($doc.querySelector("ul.items"));
+                    }
 
-        $stats.innerHTML = `${$matched.length} from ${totalCount}`;
-        $comments.innerHTML = "";
-        $comments.append(...$matched);
-    }
-
-    function handleFetchActivities() {
-        activityUrlStateContainer.setStringCriteria(ACTIVITY_URL, $url.value);
-        activityUrlStateContainer.storeCurrentState();
-
-        fetchActivities(() => {
-            // NOP
-        });
-    }
-
-    $url.addEventListener("keyup", toEnter(handleFetchActivities));
-
-    function handleSearch() {
-        activityUrlStateContainer.setStringCriteria(ACTIVITY_SEARCH_QUERY, $search.value);
-        activityUrlStateContainer.storeCurrentState();
-
-        search();
-    }
-
-    $search.addEventListener("keyup", toEnter(handleSearch));
-
-    onCheckboxChange($supported, ACTIVITY_SUPPORTED_CRITERIA_NAME);
-
-    $urlForm.onsubmit = handleFetchActivities;
-    $activityForm.onsubmit = handleSearch;
-
-    fetchActivities(search);
+                    render(new ActivitiesResponse(
+                        user,
+                        pages,
+                        totalPageCount,
+                        $originalCommentPageGroup,
+                    ));
+                });
+        })
+        .catch(console.error);
 }
+
+function search(response: ActivitiesResponse | null) {
+    if (response === null) {
+        $main.style.visibility = "hidden";
+
+        return;
+    }
+
+    $main.style.visibility = "";
+    $profileAvatar.src = response.user.avatar;
+    $profileUsername.innerHTML = response.user.username;
+
+    const $matched = [];
+    let totalCount = 0;
+
+    const match = buildMatcher();
+
+    for (const $originalComments of response.$originalCommentPageGroup) {
+        for (const $originalComment of $originalComments.children) {
+            totalCount += 1;
+
+            if (match($originalComment)) {
+                $matched.push($originalComment.cloneNode(true));
+            }
+        }
+    }
+
+
+    $commentsCountStats.innerHTML = `Знайдено коментарів ${$matched.length} з ${totalCount}`;
+    $commentsPageStats.innerHTML = `На ${response.pages} сторінках з ${response.totalPageCount}`;
+    $comments.innerHTML = "";
+    $comments.append(...$matched);
+}
+
+const {
+    setInputStateByURL,
+    setCheckboxesStateByURL,
+    setCheckboxStateByURL,
+} = setStateByURLMapper(urlStateContainer);
+
+const $userURL = document.getElementById("js-user-url") as HTMLInputElement;
+const $search = document.getElementById("js-search-query") as HTMLInputElement;
+const $showPageCount = document.getElementById("js-show-page-count") as HTMLInputElement;
+const $anchorCheckboxes = new InputCheckboxes(document.querySelectorAll("input.js-criteria-anchor") as any as Array<HTMLInputElement>);
+const $codeCheckboxes = new InputCheckboxes(document.querySelectorAll("input.js-criteria-code") as any as Array<HTMLInputElement>);
+const $supportCheckboxes = new InputCheckboxes(document.querySelectorAll("input.js-criteria-support") as any as Array<HTMLInputElement>);
+const $sourceCheckboxes = new InputCheckboxes(document.querySelectorAll("input.js-criteria-source") as any as Array<HTMLInputElement>);
+const $submit = document.getElementById("js-search-submit") as HTMLButtonElement;
+const $main = document.getElementById("js-main");
+const $profileAvatar = document.getElementById("js-profile-avatar") as HTMLImageElement;
+const $profileUsername = document.getElementById("js-profile-username");
+const $commentsCountStats = document.getElementById("js-comments-count-stats");
+const $commentsPageStats = document.getElementById("js-comments-page-stats");
+const $comments = document.getElementById("js-content-comments");
+
+{
+    const parsedURL = parseDOUxURL(urlStateContainer.getCriteria(USER_URL, ""));
+    $userURL.value = parsedURL.userURL;
+    $submit.disabled = parsedURL.activitiesURL === "";
+}
+setInputStateByURL($search, ACTIVITY_SEARCH_QUERY);
+setInputStateByURL($showPageCount, ACTIVITY_PAGES);
+setCheckboxesStateByURL($anchorCheckboxes, ACTIVITY_ANCHOR_CRITERIA_NAME);
+setCheckboxesStateByURL($codeCheckboxes, ACTIVITY_CODE_CRITERIA_NAME);
+setCheckboxesStateByURL($supportCheckboxes, ACTIVITY_SUPPORT_CRITERIA_NAME);
+setCheckboxesStateByURL($sourceCheckboxes, ACTIVITY_SOURCE_CRITERIA_NAME);
+
+function onSelectboxChange($selectbox: HTMLInputElement, criteriaName: string) {
+    $selectbox.addEventListener("change", function () {
+        urlStateContainer.setStringCriteria(criteriaName, $selectbox.value);
+        urlStateContainer.storeCurrentState();
+
+        handleSearch();
+    });
+}
+
+function onCheckboxesChange($checkboxes: Checkboxes, criteriaName: string) {
+    $checkboxes.onChange(function (state: Array<string>) {
+        urlStateContainer.setArrayCriteria(criteriaName, state);
+        urlStateContainer.storeCurrentState();
+
+        handleSearch();
+    });
+}
+
+function handleSearch() {
+    const parsedURL = parseDOUxURL($userURL.value);
+    urlStateContainer.setStringCriteria(USER_URL, parsedURL.userURL);
+    urlStateContainer.setStringCriteria(ACTIVITY_SEARCH_QUERY, $search.value);
+    urlStateContainer.storeCurrentState();
+
+    if (parsedURL.activitiesURL === "") {
+        search(null);
+
+        return;
+    }
+
+    fetchActivities(parsedURL.activitiesURL, $showPageCount.value, search);
+}
+
+$userURL.addEventListener("keyup", function (event) {
+    const parsedURL = parseDOUxURL($userURL.value);
+    $submit.disabled = parsedURL.activitiesURL === "";
+    
+    toEnter(handleSearch)(event);
+});
+$search.addEventListener("keyup", toEnter(handleSearch));
+
+onSelectboxChange($showPageCount, ACTIVITY_PAGES);
+onCheckboxesChange($anchorCheckboxes, ACTIVITY_ANCHOR_CRITERIA_NAME);
+onCheckboxesChange($codeCheckboxes, ACTIVITY_CODE_CRITERIA_NAME);
+onCheckboxesChange($supportCheckboxes, ACTIVITY_SUPPORT_CRITERIA_NAME);
+onCheckboxesChange($sourceCheckboxes, ACTIVITY_SOURCE_CRITERIA_NAME);
+
+$submit.addEventListener("click", handleSearch);
+
+function getPageCount($doc: Document): number {
+    const $pages = $doc.querySelectorAll(".page");
+
+    if ($pages.length === 0) {
+        return 1;
+    }
+
+    const $last = $pages[$pages.length - 1];
+
+    return parseInt($last.textContent, 10);
+}
+
+handleSearch();
