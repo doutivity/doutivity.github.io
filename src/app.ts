@@ -5,6 +5,7 @@ import {
     ACTIVITY_ANCHOR_CRITERIA_NAME,
     ACTIVITY_CODE_CRITERIA_NAME,
     ACTIVITY_SUPPORT_CRITERIA_NAME,
+    ACTIVITY_QUOTE_CRITERIA_NAME,
     ACTIVITY_SOURCE_CRITERIA_NAME,
 } from "./framework/activity_criteria_names";
 import urlStateContainer from "./framework/activity_url_state_container";
@@ -135,6 +136,7 @@ const $showPageCount = document.getElementById("js-show-page-count") as HTMLInpu
 const $anchorCheckboxes = new InputCheckboxes(document.querySelectorAll("input.js-criteria-anchor") as any as Array<HTMLInputElement>);
 const $codeCheckboxes = new InputCheckboxes(document.querySelectorAll("input.js-criteria-code") as any as Array<HTMLInputElement>);
 const $supportCheckboxes = new InputCheckboxes(document.querySelectorAll("input.js-criteria-support") as any as Array<HTMLInputElement>);
+const $quoteCheckboxes = new InputCheckboxes(document.querySelectorAll("input.js-criteria-quote") as any as Array<HTMLInputElement>);
 const $sourceCheckboxes = new InputCheckboxes(document.querySelectorAll("input.js-criteria-source") as any as Array<HTMLInputElement>);
 const $submit = document.getElementById("js-search-submit") as HTMLButtonElement;
 const $main = document.getElementById("js-main");
@@ -154,6 +156,7 @@ setInputStateByURL($showPageCount, ACTIVITY_PAGES);
 setCheckboxesStateByURL($anchorCheckboxes, ACTIVITY_ANCHOR_CRITERIA_NAME);
 setCheckboxesStateByURL($codeCheckboxes, ACTIVITY_CODE_CRITERIA_NAME);
 setCheckboxesStateByURL($supportCheckboxes, ACTIVITY_SUPPORT_CRITERIA_NAME);
+setCheckboxesStateByURL($quoteCheckboxes, ACTIVITY_QUOTE_CRITERIA_NAME);
 setCheckboxesStateByURL($sourceCheckboxes, ACTIVITY_SOURCE_CRITERIA_NAME);
 
 function onSelectboxChange($selectbox: HTMLInputElement, criteriaName: string) {
@@ -175,6 +178,7 @@ function onCheckboxesChange($checkboxes: Checkboxes, criteriaName: string) {
 }
 
 const activitiesStorage = new ActivitiesStorage();
+
 function handleSearch() {
     const parsedURL = parseDOUxURL($userURL.value);
     urlStateContainer.setStringCriteria(USER_URL, parsedURL.userURL);
@@ -204,7 +208,7 @@ function handleSearch() {
 $userURL.addEventListener("keyup", function (event) {
     const parsedURL = parseDOUxURL($userURL.value);
     $submit.disabled = parsedURL.activitiesURL === "";
-    
+
     toEnter(handleSearch)(event);
 });
 $search.addEventListener("keyup", toEnter(handleSearch));
@@ -213,6 +217,7 @@ onSelectboxChange($showPageCount, ACTIVITY_PAGES);
 onCheckboxesChange($anchorCheckboxes, ACTIVITY_ANCHOR_CRITERIA_NAME);
 onCheckboxesChange($codeCheckboxes, ACTIVITY_CODE_CRITERIA_NAME);
 onCheckboxesChange($supportCheckboxes, ACTIVITY_SUPPORT_CRITERIA_NAME);
+onCheckboxesChange($quoteCheckboxes, ACTIVITY_QUOTE_CRITERIA_NAME);
 onCheckboxesChange($sourceCheckboxes, ACTIVITY_SOURCE_CRITERIA_NAME);
 
 $submit.addEventListener("click", handleSearch);

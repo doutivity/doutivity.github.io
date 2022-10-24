@@ -4,6 +4,7 @@ import {
     ACTIVITY_ANCHOR_CRITERIA_NAME,
     ACTIVITY_CODE_CRITERIA_NAME,
     ACTIVITY_SUPPORT_CRITERIA_NAME,
+    ACTIVITY_QUOTE_CRITERIA_NAME,
     ACTIVITY_SOURCE_CRITERIA_NAME,
 } from "./framework/activity_criteria_names";
 
@@ -12,18 +13,21 @@ export function buildMatcher(): ($comment: HTMLElement) => boolean {
     const anchorAliases = urlStateContainer.getCriteria(ACTIVITY_ANCHOR_CRITERIA_NAME, []);
     const codeAliases = urlStateContainer.getCriteria(ACTIVITY_CODE_CRITERIA_NAME, []);
     const supportAliases = urlStateContainer.getCriteria(ACTIVITY_SUPPORT_CRITERIA_NAME, []);
+    const quoteAliases = urlStateContainer.getCriteria(ACTIVITY_QUOTE_CRITERIA_NAME, []);
     const sourceAliases = urlStateContainer.getCriteria(ACTIVITY_SOURCE_CRITERIA_NAME, []);
 
     const matchQuery = buildMatchQuery(query);
     const matchAnchor = buildMatchAnchor(anchorAliases);
     const matchSupport = buildMatchSupport(supportAliases);
     const matchCode = buildMatchCode(codeAliases);
+    const matchQuote = buildMatchQuote(quoteAliases);
     const matchSource = buildMatchSource(sourceAliases);
 
     return function ($comment: HTMLElement): boolean {
         return matchAnchor($comment)
             && matchCode($comment)
             && matchSupport($comment)
+            && matchQuote($comment)
             && matchSource($comment)
             && matchQuery($comment);
     }
@@ -73,6 +77,25 @@ function buildMatchSupport(aliases: Array<string>) {
             case "without-support":
                 return function ($comment: HTMLElement) {
                     return $comment.querySelector(".sup-users") === null;
+                };
+        }
+    }
+
+    return matchAll;
+}
+
+function buildMatchQuote(aliases: Array<string>) {
+    if (aliases.length === 1) {
+        const [alias] = aliases;
+
+        switch (alias) {
+            case "with-quote":
+                return function ($comment: HTMLElement) {
+                    return $comment.querySelector(".comment-item .b-typo blockquote") !== null
+                };
+            case "without-quote":
+                return function ($comment: HTMLElement) {
+                    return $comment.querySelector(".comment-item .b-typo blockquote") === null
                 };
         }
     }

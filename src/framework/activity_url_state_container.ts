@@ -11,6 +11,7 @@ import {
     ACTIVITY_ANCHOR_CRITERIA_NAME,
     ACTIVITY_CODE_CRITERIA_NAME,
     ACTIVITY_SUPPORT_CRITERIA_NAME,
+    ACTIVITY_QUOTE_CRITERIA_NAME,
     ACTIVITY_SOURCE_CRITERIA_NAME,
     ACTIVITY_CRITERIA_NAMES,
 } from "./activity_criteria_names";
@@ -25,6 +26,7 @@ const activityUrlStateContainer = new UrlStateContainer(ACTIVITY_CRITERIA_NAMES,
     [ACTIVITY_ANCHOR_CRITERIA_NAME]: multiSelectCriteriaConverter,
     [ACTIVITY_CODE_CRITERIA_NAME]: multiSelectCriteriaConverter,
     [ACTIVITY_SUPPORT_CRITERIA_NAME]: multiSelectCriteriaConverter,
+    [ACTIVITY_QUOTE_CRITERIA_NAME]: multiSelectCriteriaConverter,
     [ACTIVITY_SOURCE_CRITERIA_NAME]: multiSelectCriteriaConverter,
 });
 
