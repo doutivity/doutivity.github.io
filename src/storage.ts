@@ -1,26 +1,39 @@
 interface Item {
     text: string,
-    expired: number,
+    created: number,
 }
 
 export class Storage {
-    constructor(private readonly prefix: string, private readonly ttl: number) {
+    constructor(
+        private readonly prefix: string,
+        private readonly ttl: number,
+        private readonly ttlMemoryQuota: number,
+    ) {
     }
 
     get(url: string): string | null {
-        const item = localStorage.getItem(this.toKey(url));
-        if (item === null) {
+        const source = localStorage.getItem(this.toKey(url));
+        if (source === null) {
             return null;
         }
 
-        return (JSON.parse(item) as Item).text;
+        const item = JSON.parse(source) as Item;
+        return item.text;
     }
 
-    set(url: string, text: string) {
-        localStorage.setItem(this.toKey(url), JSON.stringify(this.toItem(text)));
+    set(url: string, text: string, attempt: number = 0) {
+        try {
+            localStorage.setItem(this.toKey(url), JSON.stringify(toItem(text)));
+        } catch (e) {
+            console.error(e, attempt);
+
+            this.clear(attempt >= 3, true);
+
+            this.set(url, text, attempt + 1);
+        }
     }
 
-    clear(force: boolean) {
+    clear(force: boolean, quota: boolean) {
         const keys = [];
         const now = Date.now();
 
@@ -29,7 +42,11 @@ export class Storage {
             if (this.isKey(key)) {
                 const item = JSON.parse(localStorage.getItem(key)) as Item;
 
-                if (force || item.expired < now) {
+                if (force) {
+                    keys.push(key);
+                } else if (quota && (item.created + this.ttlMemoryQuota) < now) {
+                    keys.push(key);
+                } else if ((item.created + this.ttl) < now) {
                     keys.push(key);
                 }
             }
@@ -40,13 +57,6 @@ export class Storage {
         }
     }
 
-    private toItem(text: string): Item {
-        return {
-            text: text,
-            expired: Date.now() + this.ttl,
-        };
-    }
-
     private toKey(url: string): string {
         return this.prefix + url;
     }
@@ -54,4 +64,11 @@ export class Storage {
     private isKey(key: string): boolean {
         return key.startsWith(this.prefix);
     }
+}
+
+function toItem(text: string): Item {
+    return {
+        text: text,
+        created: Date.now(),
+    };
 }

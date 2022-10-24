@@ -1,18 +1,34 @@
 import {Storage} from "./storage";
 import {TextResponse} from "./models";
 
-const storage = new Storage("dou:", 60 * 60 * 1000);
-storage.clear(false);
+const storage = new Storage("dou:", 30 * 60 * 1000, 30 * 1000);
+storage.clear(false, false);
 
-export function fetchAndCache(url: string, delay: number): Promise<TextResponse> {
+export class DelayCounter {
+    constructor(
+        private readonly step: number,
+        private delay: number,
+    ) {
+    }
+
+    increment(): number {
+        const result = this.delay;
+
+        this.delay += this.step;
+
+        return result;
+    }
+}
+
+export function fetchAndCache(url: string, delay: DelayCounter): Promise<TextResponse> {
+    const cached = storage.get(url);
+    if (cached !== null) {
+        return Promise.resolve(new TextResponse(cached))
+    }
+
+    const ms = delay.increment();
+
     return new Promise(function (resolve, reject) {
-        const cached = storage.get(url);
-        if (cached !== null) {
-            resolve(new TextResponse(cached));
-
-            return;
-        }
-
         setTimeout(function () {
             fetch(url)
                 .then(function (response) {
@@ -24,6 +40,6 @@ export function fetchAndCache(url: string, delay: number): Promise<TextResponse>
                     resolve(new TextResponse(text));
                 })
                 .catch(reject);
-        }, delay);
+        }, ms);
     });
 }

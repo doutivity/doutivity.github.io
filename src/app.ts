@@ -13,14 +13,14 @@ import {Checkboxes, InputCheckboxes} from "./framework/checkboxes";
 import {toEnter} from "./framework/enter";
 
 import {parseDOUxURL} from "./dou_url";
-import {fetchAndCache} from "./fetch_and_cache";
+import {DelayCounter, fetchAndCache} from "./fetch_and_cache";
 import {ActivitiesResponse, User} from "./models";
 import {buildMatcher} from "./matches";
 
 function fetchActivities(activityURL: string, showPages: string, render: (response: ActivitiesResponse | null) => void) {
-    const $originalCommentPageGroup = [];
+    const delay = new DelayCounter(250, 0);
 
-    fetchAndCache(activityURL, 100)
+    fetchAndCache(activityURL, delay)
         .then(function (response) {
             return response.text();
         })
@@ -36,7 +36,7 @@ function fetchActivities(activityURL: string, showPages: string, render: (respon
                 $avatar.src,
             );
 
-            $originalCommentPageGroup.push($doc.querySelector("ul.items"));
+            const $originalCommentPageGroup = [$doc.querySelector("ul.items")];
 
             const totalPageCount = getPageCount($doc);
             if (totalPageCount === 1) {
@@ -61,7 +61,7 @@ function fetchActivities(activityURL: string, showPages: string, render: (respon
 
             const requests = [];
             for (let page = 2; page <= pages; page++) {
-                requests.push(fetchAndCache(`${activityURL}/${page}/`, page * 250));
+                requests.push(fetchAndCache(`${activityURL}/${page}/`, delay));
             }
 
             Promise.all(requests)
