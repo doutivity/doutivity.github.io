@@ -3,7 +3,7 @@ interface Item {
     created: number,
 }
 
-export class Storage {
+export class HttpResponseStorage {
     constructor(
         private readonly prefix: string,
         private readonly ttl: number,

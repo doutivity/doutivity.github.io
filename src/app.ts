@@ -16,6 +16,7 @@ import {parseDOUxURL} from "./dou_url";
 import {DelayCounter, fetchAndCache} from "./fetch_and_cache";
 import {ActivitiesResponse, User} from "./models";
 import {buildMatcher} from "./matches";
+import {ActivitiesStorage} from "./activities_storage";
 
 function fetchActivities(activityURL: string, showPages: string, render: (response: ActivitiesResponse | null) => void) {
     const delay = new DelayCounter(250, 0);
@@ -88,7 +89,7 @@ function fetchActivities(activityURL: string, showPages: string, render: (respon
         .catch(console.error);
 }
 
-function search(response: ActivitiesResponse | null) {
+function render(response: ActivitiesResponse | null) {
     if (response === null) {
         $main.style.visibility = "hidden";
 
@@ -172,6 +173,7 @@ function onCheckboxesChange($checkboxes: Checkboxes, criteriaName: string) {
     });
 }
 
+const activitiesStorage = new ActivitiesStorage();
 function handleSearch() {
     const parsedURL = parseDOUxURL($userURL.value);
     urlStateContainer.setStringCriteria(USER_URL, parsedURL.userURL);
@@ -179,12 +181,23 @@ function handleSearch() {
     urlStateContainer.storeCurrentState();
 
     if (parsedURL.activitiesURL === "") {
-        search(null);
+        render(null);
 
         return;
     }
 
-    fetchActivities(parsedURL.activitiesURL, $showPageCount.value, search);
+    const response = activitiesStorage.get(parsedURL.activitiesURL, $showPageCount.value);
+    if (response !== null) {
+        render(response);
+
+        return;
+    }
+
+    fetchActivities(parsedURL.activitiesURL, $showPageCount.value, function (response: ActivitiesResponse | null) {
+        activitiesStorage.set(parsedURL.activitiesURL, $showPageCount.value, response);
+
+        render(response);
+    });
 }
 
 $userURL.addEventListener("keyup", function (event) {

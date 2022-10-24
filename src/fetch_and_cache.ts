@@ -1,7 +1,7 @@
-import {Storage} from "./storage";
+import {HttpResponseStorage} from "./http_response_storage"
 import {TextResponse} from "./models";
 
-const storage = new Storage("dou:", 30 * 60 * 1000, 30 * 1000);
+const storage = new HttpResponseStorage("dou:", 30 * 60 * 1000, 30 * 1000);
 storage.clear(false, false);
 
 export class DelayCounter {
