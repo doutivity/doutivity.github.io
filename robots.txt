@@ -1,4 +1,4 @@
 User-agent: *
 Disallow:
 
-Sitemap: https://activities-finder.github.io/sitemap.xml
+Sitemap: https://doutivity.github.io/sitemap.xml
