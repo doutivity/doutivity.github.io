@@ -51,9 +51,10 @@ function fetchActivities(activityURL: string, showPages: string, render: (respon
                 return;
             }
 
+            const defaultShowPages = 4;
             let pages = 0;
             if (showPages === "") {
-                pages = Math.min(5, totalPageCount);
+                pages = Math.min(defaultShowPages, totalPageCount);
             } else if (showPages === "all") {
                 pages = totalPageCount
             } else {

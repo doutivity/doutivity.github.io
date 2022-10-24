@@ -125,6 +125,10 @@ function buildMatchSource(aliases: Array<string>) {
                 if (commentURL.startsWith("https://dou.ua/calendar/")) {
                     return true;
                 }
+            } else if (alias === "gamedev") {
+                if (commentURL.startsWith("https://gamedev.dou.ua/")) {
+                    return true;
+                }
             }
         }
 
