@@ -1,0 +1,17 @@
+/* TEAM */
+    Name: Yaroslav Podorvanov
+    Role: Back-end Developer
+    Profile: https://github.com/YaroslavPodorvanov
+    From: Ukraine
+
+    Name: Yevhen Kholevchuk
+    Role: Front-end Developer
+    Profile: https://www.linkedin.com/in/evgeny-holevchuk-9460b7136/
+    From: Ukraine
+
+    Name: Anastasiia Sihetii
+    Role: Designer
+    Profile: https://github.com/AnastasiiaSihetii
+    From: Ukraine
+
+Inspired by https://humanstxt.org/humans.txt
